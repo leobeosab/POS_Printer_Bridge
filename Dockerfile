@@ -15,6 +15,7 @@ COPY src/main.py ./app/main.py
 COPY src/test.py ./app/test.py
 COPY src/customtypes.py ./app/customtypes.py
 COPY src/models.py ./app/models.py
+COPY src/utils ./app/utils
 EXPOSE 8000
 
 # CMD ["sleep", "1000000"]
