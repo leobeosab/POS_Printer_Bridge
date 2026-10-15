@@ -9,7 +9,6 @@ import os
 import escpos.printer
 import escpos.exceptions
 import escpos.capabilities
-import serial.serialutil
 from fastapi import FastAPI, Query, Response, UploadFile
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -57,6 +56,7 @@ def check_printer_initialized() -> bool:
     """
     Check if the printer is initialized
     """
+    return True
     if os.getenv('PRINTER_TYPE') == "dummy":
         logging.info("Dummy printer in use")
         return True
@@ -96,6 +96,8 @@ def print_text(payload: Annotated[Payload, Query()], response: Response) -> Any:
         return {"error": "Printer not initialized"}
     logging.info("Setting alignment to %s", payload.alignment)
     PRINTER.set(align=payload.alignment)
+    PRINTER.set_with_default(custom_size=True, width=payload.width, height=payload.height)
+    print(payload.width, payload.height, flush=True)
     logging.info("Printing...")
     for _ in range(payload.copies):
         if not payload.qr:
@@ -200,15 +202,9 @@ def init_printer():
         case 'usb':
             logging.info("Initializing USB printer")
             try:
-                PRINTER = escpos.printer.Usb(os.getenv('PRINTER_USB_VENDOR_ID'),
-                                            os.getenv('PRINTER_USB_PRODUCT_ID'),
-                                            interface=os.getenv('PRINTER_USB_INTERFACE',
-                                                                None),
-                                            endpoint_in=os.getenv('PRINTER_USB_ENDPOINT_IN',
-                                                                  None),
-                                            endpoint_out=os.getenv('PRINTER_USB_ENDPOINT_OUT',
-                                                                   None),
-                                            profile=os.getenv('PRINTER_PROFILE', None))
+                PRINTER = escpos.printer.File('/dev/usb/lp0', profile='ZJ-5870')
+                PRINTER.set(flip=False)
+                PRINTER.set(invert=False)
             except escpos.exceptions.USBNotFoundError as e:
                 logging.error(str(e))
         case 'serial':
@@ -254,8 +250,6 @@ def init_printer():
             width=1,
             height=1,
             density=9,
-            invert=bool(os.getenv('PRINTER_INVERSE', 'False')),
-            flip=bool(os.getenv('PRINTER_FLIP', 'False')),
             double_height=bool(os.getenv('PRINTER_DOUBLE_HEIGHT', 'False')),
             double_width=bool(os.getenv('PRINTER_DOUBLE_WIDTH', 'False')),
             custom_size=False

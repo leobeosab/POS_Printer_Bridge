@@ -1,4 +1,5 @@
-escpos
+python-escpos
+pyusb
 fastapi
 pydantic
 dotenv

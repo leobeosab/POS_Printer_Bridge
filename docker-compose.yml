@@ -1,10 +1,11 @@
 services:
   posprinter_bridge:
-    image: thearmedprogrammer/pos_printer_bridge:latest
-    # image: ghcr.io/michelfrancisbustillos/pos_printer_bridge:latest
+    build: .
+    privileged: true
     ports:
       - "8000:8000"
     env_file:
       - path: .env
         required: true
-    restart: unless-stopped
+    devices:
+      - "/dev/usb/lp0:/dev/usb/lp0"  

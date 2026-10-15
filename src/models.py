@@ -10,6 +10,8 @@ class Payload(BaseModel):
     """
     content: str = Field(description="Content to Print", title="Content")
     copies: int = Field(ge=1, description="Number of Copies", title="Copies", default=1)
+    width: int = Field(ge=1, description="Width Multiplier", title="Width", default=1)
+    height: int = Field(ge=1, description="Height Multiplier", title="Height", default=1)
     cut: bool = Field(description="Cut after each copy", title="Cut", default=True)
     alignment : Alignments = Field(description="Alignment of the output",
                                    title="Alignment",
@@ -23,6 +25,8 @@ class Payload(BaseModel):
                 {
                     "content": "Content to print",
                     "copies": 1,
+                    "width": 1,
+                    "height": 1,
                     "cut": True,
                     "alignment": "left",
                     "qr": False,
