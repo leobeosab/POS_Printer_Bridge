@@ -126,6 +126,7 @@ def print_markdown_content(payload: MarkdownPayload, response: Response) -> Any:
     logging.info("Setting alignment to %s", payload.alignment)
     PRINTER.set(align=payload.alignment)
     logging.info("Printing markdown...")
+    PRINTER.cut()
     print_markdown(PRINTER, payload.content, qr_size=payload.qr_size)
     logging.info("Cutting...")
     PRINTER.cut()
