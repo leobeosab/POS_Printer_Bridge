@@ -99,3 +99,28 @@ class ImageSettings(BaseModel):
             ]
         }
     }
+
+class MarkdownPayload(BaseModel):
+    """
+    Payload Model for Printing Markdown
+    """
+    content: str = Field(description="Markdown content to print", title="Content")
+    qr_size: int = Field(ge=1, le=16,
+                         description="Size of generated QR Codes",
+                         title="QR Size",
+                         default=8)
+    alignment: Alignments = Field(description="Alignment of the output",
+                                  title="Alignment",
+                                  default=Alignments.LEFT)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "content": "# Title\nSome **bold** text",
+                    "qr_size": 8,
+                    "alignment": "left"
+                }
+            ]
+        }
+    }

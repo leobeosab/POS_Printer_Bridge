@@ -15,7 +15,7 @@ This project exposes a minimal FastAPI service with endpoints for printing plain
 1. Ensure you have Python 3.8+ installed (if using local setup) or Docker installed (if using Docker).
 2. Have access to an ESC/POS-compatible receipt printer (network, serial, or USB).
 3. Create a `.env` file in the project root with the correct environment variables (see below).
-   1. `PRINTER_TYPE` - Type of printer connection: `network`, `serial`, `usb`, or `dummy`.
+   1. `PRINTER_TYPE` - Type of printer connection: `network`, `serial`, `usb`, `file`, or `dummy`.
    2. For `network` printers, set `PRINTER_IP` to the printer's IP address.
    3. For `serial` printers, set `PRINTER_PORT` to the serial port (e.g., `/dev/tty0` on Linux or `COM1` on Windows).
    4. For `usb` printers, set `PRINTER_VENDOR_ID` and `PRINTER_PRODUCT_ID` to the USB device path.
@@ -70,9 +70,10 @@ This project exposes a minimal FastAPI service with endpoints for printing plain
 
 | Environment Variable     | Required | Printer Type | Default | Description                                                                                                    |
 |--------------------------|----------|--------------|---------|----------------------------------------------------------------------------------------------------------------|
-| PRINTER_TYPE             | **Yes**  | All          |         | 'network', 'usb', 'serial', 'dummy'                                                                            |
+| PRINTER_TYPE             | **Yes**  | All          |         | 'network', 'usb', 'serial', 'file', 'dummy'                                                                    |
 | PRINTER_PROFILE          | Optional | All          |         | See [ESCPOS Profiles](https://python-escpos.readthedocs.io/en/latest/printer_profiles/available-profiles.html) |
 | PRINTER_IP               | **Yes**  | Network      |         | IP of Networked Printer                                                                                        |
+| PRINTER_FILE_PATH        | **Yes**  | File         |         | Path to the printer device or output file                                                                      |
 | PRINTER_USB_VENDOR_ID    | **Yes**  | USB          |         | Vendor ID for USB Printer                                                                                      |
 | PRITNER_USB_PRODUCT_ID   | **Yes**  | USB          |         | Product ID for USB Printer                                                                                     |
 | PRINTER_USB_INTERFACE    | Optional | USB          | 0       | USB Interface                                                                                                  |
@@ -138,6 +139,26 @@ This project exposes a minimal FastAPI service with endpoints for printing plain
     }
     ```
 
+- `/print/markdown/`
+  - Type: `POST`
+  - Description: Print Markdown content. The request body is JSON. The document is printed once and the paper is always cut at the end.
+  - Body:
+    - `content` (string) — Markdown content to print (required).
+    - `qr_size` (int, 1-16) — Size of generated QR codes (default: `8`).
+    - `alignment` (string, 'left', 'center', 'right') — Text alignment (default: `left`).
+  - Supported syntax:
+    - Headers — `#` through `######`, printed at text sizes 4, 3, 2 and 1 respectively.
+    - Bold — `**text**` or `__text__`.
+    - Underline — `<u>text</u>` (double underline).
+    - Links — `[label](url)` prints the label as text and renders the URL as a QR code.
+  - Response Example:
+
+    ```json
+    {
+      "status": "Markdown Printed"
+    }
+    ```
+
 - `/barcode/`
   - Type: `POST`
   - Description: Print a Barcode code. Accepts query parameters.
@@ -200,6 +221,10 @@ Using `curl` (POST with query string):
 curl -X POST "http://localhost:8000/print/?content=Hello%20Printer&copies=1&cut=true"
 
 curl -X POST "http://localhost:8000/print/?content=https%3A%2F%2Fexample.com&size=4&copies=1&cut=true&qr=true"
+
+curl -X POST "http://localhost:8000/print/markdown/" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "# Title\nSome **bold** and <u>underlined</u> text\n[Order here](https://example.com)", "alignment": "left"}'
 ```
 
 Using Python `requests`:

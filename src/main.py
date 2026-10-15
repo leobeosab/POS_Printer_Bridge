@@ -15,7 +15,8 @@ import uvicorn
 from PIL import Image
 from dotenv import load_dotenv
 from customtypes import Alignments
-from models import Payload, Barcode, ImageSettings
+from models import Payload, Barcode, ImageSettings, MarkdownPayload
+from utils.markdown import print_markdown
 
 match os.getenv('LOG_LEVEL', 'INFO').upper():
     case 'DEBUG':
@@ -111,6 +112,26 @@ def print_text(payload: Annotated[Payload, Query()], response: Response) -> Any:
     PRINTER.set(align=os.getenv('PRINTER_ALIGNMENT', 'left'))
     return {"status": "Content Printed"}
 
+@app.post("/print/markdown/", status_code=200)
+def print_markdown_content(payload: MarkdownPayload, response: Response) -> Any:
+    """
+    Print Markdown content.
+
+    :param payload: Markdown content and print settings
+    :type payload: MarkdownPayload
+    """
+    if not check_printer_initialized():
+        response.status_code = 400
+        return {"error": "Printer not initialized"}
+    logging.info("Setting alignment to %s", payload.alignment)
+    PRINTER.set(align=payload.alignment)
+    logging.info("Printing markdown...")
+    print_markdown(PRINTER, payload.content, qr_size=payload.qr_size)
+    logging.info("Cutting...")
+    PRINTER.cut()
+    PRINTER.set(align=os.getenv('PRINTER_ALIGNMENT', 'left'))
+    return {"status": "Markdown Printed"}
+
 @app.post("/barcode/", status_code=200)
 def print_barcode(barcode: Annotated[Barcode, Query()], response: Response) -> Any:
     """
@@ -185,6 +206,17 @@ def cut_paper(response: Response) -> Any:
     PRINTER.cut()
     return {"status": "Paper Cut"}
 
+def init_file_printer():
+    """
+    Initialize a printer that writes to the path in ``PRINTER_FILE_PATH``
+    """
+    file_path = os.getenv('PRINTER_FILE_PATH')
+    if not file_path:
+        logging.error("PRINTER_FILE_PATH is not set")
+        raise SystemExit("PRINTER_FILE_PATH is not set")
+    return escpos.printer.File(file_path,
+                               profile=os.getenv('PRINTER_PROFILE', None))
+
 def init_printer():
     """
     Initialize the printer from environment variables
@@ -202,11 +234,20 @@ def init_printer():
         case 'usb':
             logging.info("Initializing USB printer")
             try:
-                PRINTER = escpos.printer.File('/dev/usb/lp0', profile='ZJ-5870')
-                PRINTER.set(flip=False)
-                PRINTER.set(invert=False)
+                PRINTER = escpos.printer.Usb(os.getenv('PRINTER_USB_VENDOR_ID'),
+                                             os.getenv('PRINTER_USB_PRODUCT_ID'),
+                                             interface=os.getenv('PRINTER_USB_INTERFACE',
+                                                                 None),
+                                             endpoint_in=os.getenv('PRINTER_USB_ENDPOINT_IN',
+                                                                   None),
+                                             endpoint_out=os.getenv('PRINTER_USB_ENDPOINT_OUT',
+                                                                    None),
+                                             profile=os.getenv('PRINTER_PROFILE', None))
             except escpos.exceptions.USBNotFoundError as e:
                 logging.error(str(e))
+        case 'file':
+            logging.info("Initializing file printer")
+            PRINTER = init_file_printer()
         case 'serial':
             logging.info("Initializing serial printer")
             try:
@@ -245,13 +286,15 @@ def init_printer():
         PRINTER.set(
             align=Alignments(os.getenv('PRINTER_ALIGNMENT', 'left')),
             font=os.getenv('PRINTER_FONT', 'a').lower(),
-            bold=bool(os.getenv('PRINTER_BOLD', 'False')),
+            bold=os.getenv('PRINTER_BOLD', 'False') == 'True',
             underline=int(os.getenv('PRINTER_UNDERLINE', '0')),
             width=1,
             height=1,
             density=9,
-            double_height=bool(os.getenv('PRINTER_DOUBLE_HEIGHT', 'False')),
-            double_width=bool(os.getenv('PRINTER_DOUBLE_WIDTH', 'False')),
+            invert=os.getenv('PRINTER_INVERSE', 'False') == 'True',
+            flip=os.getenv('PRINTER_FLIP', 'False') == 'True',
+            double_height=os.getenv('PRINTER_DOUBLE_HEIGHT', 'False') == 'True',
+            double_width=os.getenv('PRINTER_DOUBLE_WIDTH', 'False') == 'True',
             custom_size=False
         )
     except escpos.capabilities.NotSupported as e:
